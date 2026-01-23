@@ -1,3 +1,16 @@
+# Gentic n8n Marketplace
+
+🚀 **Production-Ready n8n Automation Templates**
+
+Modern landing page showcasing Gentic's catalog of battle-tested n8n workflows and content systems.
+
+## 🌐 Live Demo
+
+- **Local**: http://localhost:3000
+- **Production**: Deploy to Vercel (see [DEPLOYMENT.md](DEPLOYMENT.md))
+
+---
+
 # Claude CLI MCP Integration
 
 ✅ **Status: Fully Functional**
