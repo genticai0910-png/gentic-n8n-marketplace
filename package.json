@@ -1,0 +1,24 @@
+{
+  "name": "claude-cli-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server wrapper for Claude CLI",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "claude-cli-mcp": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "bridge": "node src/websocket-bridge.js",
+    "test": "node test-client.js",
+    "landing": "node server-landing.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "puppeteer": "^24.36.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}
