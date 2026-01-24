@@ -145,12 +145,40 @@ async function updateLandingPage(products, config) {
   // Generate new product cards
   const productCards = generateProductCards(products, config.pinnedProduct.name);
 
-  // Replace the templates section
+  // Replace the templates section by finding matching closing div
   const templatesStart = currentLanding.indexOf('<div class="templates-grid">');
-  const templatesEnd = currentLanding.indexOf('</div>', templatesStart + 100) + 6;
 
   if (templatesStart === -1) {
     console.error('❌ Could not find templates grid in landing.html');
+    process.exit(1);
+  }
+
+  // Find the matching closing </div> by counting nested divs
+  let depth = 0;
+  let pos = templatesStart;
+  let templatesEnd = -1;
+
+  while (pos < currentLanding.length) {
+    const nextOpen = currentLanding.indexOf('<div', pos);
+    const nextClose = currentLanding.indexOf('</div>', pos);
+
+    if (nextClose === -1) break;
+
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + 4;
+    } else {
+      if (depth === 0) {
+        templatesEnd = nextClose + 6;
+        break;
+      }
+      depth--;
+      pos = nextClose + 6;
+    }
+  }
+
+  if (templatesEnd === -1) {
+    console.error('❌ Could not find closing div for templates grid');
     process.exit(1);
   }
 
