@@ -1,0 +1,11 @@
+{
+  "pinnedProduct": {
+    "name": "n8n-healer",
+    "title": "n8n Healer",
+    "description": "Production-ready n8n workflow monitoring and auto-healing system"
+  },
+  "gumroad": {
+    "storeUrl": "https://genticai.gumroad.com",
+    "apiUrl": "https://api.gumroad.com/v2"
+  }
+}

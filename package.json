@@ -11,10 +11,15 @@
     "start": "node src/index.js",
     "bridge": "node src/websocket-bridge.js",
     "test": "node test-client.js",
-    "landing": "node server-landing.js"
+    "landing": "node server-landing.js",
+    "extension": "node claude-websocket-server.js",
+    "test-ws": "node test-websocket.js",
+    "claude-bridge": "node claude-chrome-bridge.cjs",
+    "sync-products": "node scripts/fetch-gumroad-products.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^17.2.3",
     "puppeteer": "^24.36.0",
     "ws": "^8.18.0"
   },
