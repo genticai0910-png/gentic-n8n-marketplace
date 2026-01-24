@@ -1,0 +1,435 @@
+{
+  "name": "Voice Agent Qualifier - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-qualifier",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "voice-qualifier-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract transcript and call metadata\nconst callData = $input.item.json;\n\n// Handle different voice platform formats (Retell, VAPI, Bland)\nlet transcript = '';\nif (Array.isArray(callData.transcript)) {\n  // Retell/VAPI format\n  transcript = callData.transcript.map(t => `${t.role}: ${t.content}`).join('\\n');\n} else if (typeof callData.transcript === 'string') {\n  // Bland format\n  transcript = callData.transcript;\n}\n\nconst extracted = {\n  call_id: callData.call_id || callData.id,\n  phone: callData.from_number || callData.customer_number || '',\n  duration_ms: callData.duration_ms || callData.call_length || 0,\n  transcript: transcript,\n  email: callData.user_metadata?.email || callData.metadata?.email || '',\n  name: callData.user_metadata?.name || callData.metadata?.name || '',\n  lead_source: callData.user_metadata?.lead_source || callData.metadata?.source || 'voice-call',\n  call_status: callData.call_status || callData.status || 'completed'\n};\n\nreturn { json: extracted };"
+      },
+      "id": "extract-transcript",
+      "name": "Extract Transcript",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=You are a real estate lead qualifier. Score this lead 0-100 based on:\n- Timeline urgency (0-30 points): Immediate need = 30, Within 6 months = 20, Just exploring = 5\n- Budget qualified (0-25 points): Budget stated and realistic = 25, Vague budget = 15, No budget = 0\n- Decision authority (0-20 points): Decision maker = 20, Influencer = 10, Researcher = 5\n- Property details (0-15 points): Specific address/details = 15, General area = 10, No details = 0\n- Engagement level (0-10 points): Enthusiastic = 10, Neutral = 5, Reluctant = 2\n\nTranscript:\n{{$json.transcript}}\n\nReturn ONLY valid JSON:\n{\n  \"score\": <number 0-100>,\n  \"reason\": \"<brief explanation>\",\n  \"next_action\": \"schedule_walkthrough\" | \"send_nurture\" | \"drip_campaign\",\n  \"priority\": \"hot\" | \"warm\" | \"cold\",\n  \"timeline\": \"<extracted timeline>\",\n  \"budget_range\": \"<extracted budget or 'not disclosed'>\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "score-lead-ai",
+      "name": "Score Lead (AI)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [650, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse AI response and merge with call data\nconst aiResponse = JSON.parse($input.item.json.message.content);\nconst callData = $node['Extract Transcript'].json;\n\nconst leadData = {\n  ...callData,\n  score: aiResponse.score,\n  priority: aiResponse.priority,\n  reason: aiResponse.reason,\n  next_action: aiResponse.next_action,\n  timeline: aiResponse.timeline || 'not disclosed',\n  budget_range: aiResponse.budget_range || 'not disclosed',\n  scored_at: new Date().toISOString(),\n  lead_id: `lead_voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn { json: leadData };"
+      },
+      "id": "merge-data",
+      "name": "Merge Lead Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{$json.email}}",
+        "additionalFields": {
+          "firstname": "={{$json.name}}",
+          "phone": "={{$json.phone}}",
+          "lifecyclestage": "lead",
+          "hs_lead_status": "={{$json.priority.toUpperCase()}}",
+          "lead_score": "={{$json.score}}",
+          "lead_source": "={{$json.lead_source}}",
+          "notes": "=Call ID: {{$json.call_id}}\\nScore: {{$json.score}}/100\\nReason: {{$json.reason}}\\nTimeline: {{$json.timeline}}\\nBudget: {{$json.budget_range}}"
+        }
+      },
+      "id": "crm-update",
+      "name": "Update CRM Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.score}}",
+              "operation": "largerEqual",
+              "value2": 80
+            }
+          ]
+        }
+      },
+      "id": "route-hot",
+      "name": "Route: Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.score}}",
+              "operation": "largerEqual",
+              "value2": 50
+            }
+          ]
+        }
+      },
+      "id": "route-warm",
+      "name": "Route: Warm Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "={{$credentials.twilioApi.phoneNumber}}",
+        "to": "={{$json.phone}}",
+        "message": "=Hi {{$json.name}}! Thanks for your interest in selling your property. Based on our conversation, I'd like to schedule a walkthrough. I've sent you a calendar invite - does tomorrow at 2pm work? Reply YES to confirm. - Sarah"
+      },
+      "id": "sms-hot",
+      "name": "SMS: Hot Lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1450, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "2",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.calendly.com/scheduled_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "calendlyApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event_type",
+              "value": "property-walkthrough"
+            },
+            {
+              "name": "invitee_email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "invitee_name",
+              "value": "={{$json.name}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "calendar-hot",
+      "name": "Book Appointment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "credentials": {
+        "calendlyApi": {
+          "id": "3",
+          "name": "Calendly API"
+        }
+      },
+      "notes": "Alternative: Use Google Calendar or Cal.com"
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "={{$credentials.twilioApi.phoneNumber}}",
+        "to": "={{$json.phone}}",
+        "message": "=Hi {{$json.name}}! Great talking to you. I'm sending you our Seller's Guide via email with comp analysis for your area. Let me know if you have questions! - Sarah"
+      },
+      "id": "sms-warm",
+      "name": "SMS: Warm Lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1450, 450],
+      "credentials": {
+        "twilioApi": {
+          "id": "2",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Cold leads get added to drip campaign (no immediate action)\nreturn {\n  json: {\n    ...$input.item.json,\n    action_taken: 'Added to 30-day nurture drip',\n    follow_up_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()\n  }\n};"
+      },
+      "id": "cold-lead-action",
+      "name": "Cold Lead Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 600]
+    },
+    {
+      "parameters": {
+        "channel": "#qualified-leads",
+        "text": "=🔥 *HOT LEAD ALERT* (Score: {{$json.score}}/100)\\n\\n*Name:* {{$json.name}}\\n*Phone:* {{$json.phone}}\\n*Email:* {{$json.email}}\\n*Timeline:* {{$json.timeline}}\\n*Budget:* {{$json.budget_range}}\\n*Reason:* {{$json.reason}}\\n*Action:* SMS sent + Appointment scheduled\\n*Call ID:* {{$json.call_id}}",
+        "otherOptions": {}
+      },
+      "id": "notify-hot",
+      "name": "Notify: Hot Lead",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1650, 250],
+      "credentials": {
+        "slackApi": {
+          "id": "4",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"lead_id\": $json.lead_id, \"score\": $json.score, \"priority\": $json.priority, \"next_action\": $json.next_action, \"message\": \"Lead qualified and processed\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Extract Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Transcript": {
+      "main": [
+        [
+          {
+            "node": "Score Lead (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Lead (AI)": {
+      "main": [
+        [
+          {
+            "node": "Merge Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CRM Contact": {
+      "main": [
+        [
+          {
+            "node": "Route: Hot Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Hot Lead?": {
+      "main": [
+        [
+          {
+            "node": "SMS: Hot Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Book Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route: Warm Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Warm Lead?": {
+      "main": [
+        [
+          {
+            "node": "SMS: Warm Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cold Lead Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS: Hot Lead": {
+      "main": [
+        [
+          {
+            "node": "Notify: Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book Appointment": {
+      "main": [
+        [
+          {
+            "node": "Notify: Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS: Warm Lead": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cold Lead Action": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: Hot Lead": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "voice-qualifier"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "premium"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "call_id": "call_retell_abc123xyz",
+  "agent_id": "agent_sarah_qualifier",
+  "from_number": "+15551234567",
+  "to_number": "+15559876543",
+  "duration_ms": 180000,
+  "call_status": "ended",
+  "transcript": [
+    {
+      "role": "agent",
+      "content": "Hi, this is Sarah calling about your recent inquiry. Do you have a few minutes to discuss your property?"
+    },
+    {
+      "role": "user",
+      "content": "Yes, absolutely! I'm looking to sell my house in Phoenix as soon as possible."
+    },
+    {
+      "role": "agent",
+      "content": "Great! What's driving your timeline?"
+    },
+    {
+      "role": "user",
+      "content": "I got a job transfer to Seattle and need to close within 60 days. The house is at 1234 Oak Street, it's a 3-bedroom, 2-bath. Needs some cosmetic work but structurally sound."
+    },
+    {
+      "role": "agent",
+      "content": "I understand. What's your target sale price?"
+    },
+    {
+      "role": "user",
+      "content": "I'm looking for around $425,000. I've seen comps in my neighborhood ranging from $400K to $450K. I'm the owner, so I can make decisions quickly."
+    },
+    {
+      "role": "agent",
+      "content": "Perfect. That price range sounds realistic for the area. Are you open to a cash offer if it means a faster close?"
+    },
+    {
+      "role": "user",
+      "content": "Absolutely! Speed is more important than squeezing out every dollar. I just want a fair offer and certainty."
+    },
+    {
+      "role": "agent",
+      "content": "Excellent. I'd love to schedule a walkthrough to see the property and put together an offer for you."
+    },
+    {
+      "role": "user",
+      "content": "That would be great! I'm available tomorrow afternoon or Thursday morning."
+    }
+  ],
+  "call_analysis": {
+    "summary": "Highly motivated seller with urgent 60-day timeline. Property-specific details provided. Realistic pricing expectations. Decision maker. Open to cash offer.",
+    "sentiment": "positive",
+    "next_steps": "Schedule property walkthrough immediately"
+  },
+  "user_metadata": {
+    "email": "john.seller@example.com",
+    "name": "John Doe",
+    "lead_source": "Facebook Ad - Phoenix Sellers"
+  }
+}

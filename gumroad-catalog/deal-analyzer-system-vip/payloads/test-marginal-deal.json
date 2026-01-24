@@ -1,0 +1,11 @@
+{
+  "address": "5678 Elm Avenue",
+  "city": "Scottsdale",
+  "state": "AZ",
+  "zip": "85250",
+  "bedrooms": 4,
+  "bathrooms": 3,
+  "sqft": 2200,
+  "asking_price": 450000,
+  "property_condition": "fair"
+}

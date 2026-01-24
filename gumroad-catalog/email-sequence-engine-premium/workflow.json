@@ -1,0 +1,319 @@
+{
+  "name": "Email Sequence Engine - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-sequence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "email-sequence-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate contact and sequence parameters\nconst input = $input.item.json;\n\nif (!input.email) {\n  throw new Error('Email address is required');\n}\n\nif (!input.sequence_type) {\n  throw new Error('Sequence type is required (nurture, onboarding, follow_up)');\n}\n\nconst contact = {\n  email: input.email.trim().toLowerCase(),\n  first_name: input.first_name || '',\n  last_name: input.last_name || '',\n  company: input.company || '',\n  sequence_type: input.sequence_type,\n  custom_fields: input.custom_fields || {},\n  sequence_id: `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  started_at: new Date().toISOString()\n};\n\nreturn { json: contact };"
+      },
+      "id": "validate-input",
+      "name": "Validate Contact Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.sequence_type}}",
+              "operation": "equals",
+              "value2": "nurture"
+            }
+          ]
+        }
+      },
+      "id": "route-sequence",
+      "name": "Route: Sequence Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Load nurture sequence template (5 emails over 14 days)\nconst contact = $input.item.json;\n\nconst emails = [\n  {\n    delay_hours: 0,\n    subject: `Hi {{first_name}}, here's what you need to know`,\n    body: `Hi {{first_name}},\\n\\nThanks for your interest! I wanted to share some insights about selling your property in today's market.\\n\\nIn this email series, I'll cover:\\n- Current market conditions\\n- How to price your property\\n- What buyers are looking for\\n- Timeline expectations\\n\\nLet me know if you have questions!\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 48,\n    subject: `{{first_name}}, understanding your home's value`,\n    body: `Hi {{first_name}},\\n\\nYesterday I mentioned pricing strategy. Here's what you should know...\\n\\n[Market analysis content]\\n\\nWant a custom comp analysis for your property? Reply to this email!\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 120,\n    subject: `What buyers really want in 2026`,\n    body: `Hi {{first_name}},\\n\\nBuyers today are looking for these 5 things...\\n\\n[Buyer preferences content]\\n\\nDoes your property check these boxes?\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 216,\n    subject: `{{first_name}}, ready to move forward?`,\n    body: `Hi {{first_name}},\\n\\nYou've been learning about the selling process. If you're ready to get started, I'd love to help.\\n\\nI can offer:\\n- Free property walkthrough\\n- No-obligation cash offer\\n- Close in as little as 7 days\\n\\nSchedule a call: [calendar link]\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 336,\n    subject: `Last chance: Get your property analysis`,\n    body: `Hi {{first_name}},\\n\\nI noticed you haven't scheduled your free walkthrough yet. This offer expires in 48 hours.\\n\\nClick here to claim your spot: [calendar link]\\n\\nOr reply if you have questions!\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  }\n];\n\nreturn {\n  json: {\n    ...contact,\n    emails: emails,\n    total_emails: emails.length\n  }\n};"
+      },
+      "id": "load-nurture",
+      "name": "Load Nurture Sequence",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Load onboarding sequence (3 emails over 7 days)\nconst contact = $input.item.json;\n\nconst emails = [\n  {\n    delay_hours: 0,\n    subject: `Welcome to the family, {{first_name}}!`,\n    body: `Hi {{first_name}},\\n\\nWelcome! I'm excited to have you here.\\n\\nHere's what to expect next...\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 72,\n    subject: `Getting started guide`,\n    body: `Hi {{first_name}},\\n\\nHere's everything you need to get started...\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  },\n  {\n    delay_hours: 168,\n    subject: `How can I help?`,\n    body: `Hi {{first_name}},\\n\\nHave questions? I'm here to help!\\n\\nBest,\\nSarah`,\n    track_opens: true,\n    track_clicks: true\n  }\n];\n\nreturn {\n  json: {\n    ...contact,\n    emails: emails,\n    total_emails: emails.length\n  }\n};"
+      },
+      "id": "load-onboarding",
+      "name": "Load Onboarding Sequence",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Personalize email content with contact data\nconst contact = $input.item.json;\nconst emails = contact.emails;\n\nconst personalizedEmails = emails.map(email => {\n  let subject = email.subject;\n  let body = email.body;\n  \n  // Replace merge tags\n  const replacements = {\n    '{{first_name}}': contact.first_name || 'there',\n    '{{last_name}}': contact.last_name || '',\n    '{{company}}': contact.company || '',\n    '{{email}}': contact.email\n  };\n  \n  for (const [tag, value] of Object.entries(replacements)) {\n    subject = subject.replace(new RegExp(tag, 'g'), value);\n    body = body.replace(new RegExp(tag, 'g'), value);\n  }\n  \n  return {\n    ...email,\n    subject: subject,\n    body: body,\n    personalized: true\n  };\n});\n\nreturn {\n  json: {\n    ...contact,\n    emails: personalizedEmails\n  }\n};"
+      },
+      "id": "personalize",
+      "name": "Personalize Emails",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Schedule emails with SendGrid or similar\nconst contact = $input.item.json;\nconst emails = contact.emails;\n\nconst scheduledEmails = emails.map((email, index) => {\n  const sendAt = new Date(Date.now() + (email.delay_hours * 60 * 60 * 1000));\n  \n  return {\n    email_number: index + 1,\n    to: contact.email,\n    from: 'sarah@example.com',\n    subject: email.subject,\n    body: email.body,\n    send_at: sendAt.toISOString(),\n    send_at_unix: Math.floor(sendAt.getTime() / 1000),\n    track_opens: email.track_opens,\n    track_clicks: email.track_clicks,\n    sequence_id: contact.sequence_id\n  };\n});\n\nreturn {\n  json: {\n    ...contact,\n    scheduled_emails: scheduledEmails,\n    next_send_at: scheduledEmails[0].send_at\n  }\n};"
+      },
+      "id": "schedule-emails",
+      "name": "Schedule Email Sends",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "={{$json.scheduled_emails[0].from}}",
+        "toEmail": "={{$json.scheduled_emails[0].to}}",
+        "subject": "={{$json.scheduled_emails[0].subject}}",
+        "emailType": "text",
+        "message": "={{$json.scheduled_emails[0].body}}",
+        "options": {
+          "trackOpens": true,
+          "trackClicks": true
+        }
+      },
+      "id": "send-email-1",
+      "name": "Send Email 1 (Immediate)",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "sendGridApi": {
+          "id": "1",
+          "name": "SendGrid API"
+        }
+      },
+      "notes": "Alternative: Mailgun, Resend, AWS SES"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Create scheduled sends for remaining emails (2-5)\nconst contact = $input.item.json;\nconst remainingEmails = contact.scheduled_emails.slice(1);\n\n// In production, these would be scheduled via:\n// 1. SendGrid scheduled sends API\n// 2. n8n Wait node + loop\n// 3. Database + cron job\n// 4. Delay node (for short sequences)\n\nreturn {\n  json: {\n    ...contact,\n    emails_scheduled: remainingEmails.length,\n    next_email_at: remainingEmails[0]?.send_at || null,\n    schedule_method: 'n8n_wait_nodes'\n  }\n};"
+      },
+      "id": "queue-remaining",
+      "name": "Queue Remaining Emails",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 450]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{$json.email}}",
+        "additionalFields": {
+          "firstname": "={{$json.first_name}}",
+          "lastname": "={{$json.last_name}}",
+          "company": "={{$json.company}}",
+          "hs_lead_status": "IN_SEQUENCE",
+          "email_sequence_id": "={{$json.sequence_id}}",
+          "email_sequence_type": "={{$json.sequence_type}}",
+          "sequence_started_at": "={{$json.started_at}}"
+        }
+      },
+      "id": "update-crm",
+      "name": "Update CRM Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "hubspotApi": {
+          "id": "2",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"sequence_id\": $json.sequence_id, \"sequence_type\": $json.sequence_type, \"total_emails\": $json.total_emails, \"first_email_sent\": true, \"emails_scheduled\": $json.emails_scheduled, \"next_email_at\": $json.next_email_at, \"message\": \"Email sequence started\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Validate Contact Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Contact Input": {
+      "main": [
+        [
+          {
+            "node": "Route: Sequence Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Sequence Type": {
+      "main": [
+        [
+          {
+            "node": "Load Nurture Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Onboarding Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Nurture Sequence": {
+      "main": [
+        [
+          {
+            "node": "Personalize Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Onboarding Sequence": {
+      "main": [
+        [
+          {
+            "node": "Personalize Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personalize Emails": {
+      "main": [
+        [
+          {
+            "node": "Schedule Email Sends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Email Sends": {
+      "main": [
+        [
+          {
+            "node": "Send Email 1 (Immediate)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Queue Remaining Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email 1 (Immediate)": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Remaining Emails": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CRM Contact": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "email-sequence"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "premium"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

@@ -15,7 +15,8 @@
     "extension": "node claude-websocket-server.js",
     "test-ws": "node test-websocket.js",
     "claude-bridge": "node claude-chrome-bridge.cjs",
-    "sync-products": "node scripts/fetch-gumroad-products.js"
+    "sync-products": "node scripts/fetch-gumroad-products.js",
+    "add-healer": "node scripts/add-healer-to-workflows.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",

@@ -1,0 +1,5 @@
+{
+  "_comment": "Expected: validation failure",
+  "email": "invalid",
+  "phone": "123"
+}

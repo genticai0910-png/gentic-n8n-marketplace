@@ -1,0 +1,57 @@
+{
+  "$schema": "https://gentic.ai/schemas/n8n-template-config/v1.json",
+  "version": "1.0.0",
+  "metadata": {
+    "template_id": "appointment-scheduler",
+    "template_version": "1.0.0",
+    "deployed_at": null,
+    "environment": "production"
+  },
+  "workspace": {
+    "name": "Your Business",
+    "timezone": "America/Phoenix",
+    "locale": "en-US",
+    "debug_mode": false
+  },
+  "integrations": {
+    "crm": {
+      "provider": "hubspot",
+      "credential": "hubspot_api"
+    },
+    "sms": {
+      "provider": "twilio",
+      "credential": "twilio_account"
+    },
+    "email": {
+      "provider": "sendgrid",
+      "credential": "sendgrid_api"
+    },
+    "slack": {
+      "credential": "slack_oauth",
+      "default_channel": "#operations"
+    }
+  },
+  "budgets": {
+    "tokens": {
+      "daily_limit": 100000,
+      "per_execution_limit": 4000
+    },
+    "costs": {
+      "daily_limit_usd": 10.0,
+      "monthly_limit_usd": 250.0
+    }
+  },
+  "compliance": {
+    "audit_logging": {
+      "enabled": true,
+      "retention_days": 90
+    },
+    "pii_handling": {
+      "redact_in_logs": true
+    }
+  },
+  "brand": {
+    "company_name": "Your Business",
+    "sender_name": "Your Team"
+  }
+}

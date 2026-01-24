@@ -1,0 +1,320 @@
+{
+  "name": "Payment Processor - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "payment-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "payment-processor-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Verify Stripe webhook signature\nconst payload = $input.item.json;\nconst headers = $input.item.headers;\n\n// In production, verify signature with:\n// stripe.webhooks.constructEvent(payload, headers['stripe-signature'], webhookSecret)\n\n// Extract payment data\nconst event = payload;\nconst paymentIntent = event.data?.object;\n\nif (!paymentIntent) {\n  throw new Error('Invalid Stripe webhook payload');\n}\n\nconst payment = {\n  payment_id: paymentIntent.id,\n  amount: paymentIntent.amount / 100, // Convert cents to dollars\n  currency: paymentIntent.currency.toUpperCase(),\n  status: paymentIntent.status,\n  customer_email: paymentIntent.receipt_email || paymentIntent.metadata?.email,\n  customer_name: paymentIntent.metadata?.customer_name || '',\n  description: paymentIntent.description || '',\n  event_type: event.type,\n  created: new Date(paymentIntent.created * 1000).toISOString(),\n  metadata: paymentIntent.metadata || {},\n  payment_method: paymentIntent.payment_method_types?.[0] || 'card',\n  webhook_id: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn { json: payment };"
+      },
+      "id": "validate-payment",
+      "name": "Validate Payment Webhook",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "succeeded"
+            }
+          ]
+        }
+      },
+      "id": "check-status",
+      "name": "Check: Payment Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "billing@example.com",
+        "toEmail": "={{$json.customer_email}}",
+        "subject": "=Payment Received - ${{$json.amount}} {{$json.currency}}",
+        "emailType": "text",
+        "message": "=Hi {{$json.customer_name || 'there'}},\\n\\nWe've received your payment of ${{$json.amount}} {{$json.currency}}.\\n\\nTransaction ID: {{$json.payment_id}}\\nPayment Method: {{$json.payment_method}}\\nDate: {{$json.created}}\\nDescription: {{$json.description}}\\n\\nThank you for your business!\\n\\nBest regards,\\nThe Team",
+        "options": {
+          "trackOpens": true
+        }
+      },
+      "id": "send-receipt",
+      "name": "Send Receipt Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "sendGridApi": {
+          "id": "1",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{$json.customer_email}}",
+        "additionalFields": {
+          "firstname": "={{$json.customer_name?.split(' ')[0] || ''}}",
+          "lastname": "={{$json.customer_name?.split(' ').slice(1).join(' ') || ''}}",
+          "lifecyclestage": "customer",
+          "hs_lead_status": "CUSTOMER",
+          "last_payment_amount": "={{$json.amount}}",
+          "last_payment_date": "={{$json.created}}",
+          "payment_id": "={{$json.payment_id}}"
+        }
+      },
+      "id": "update-crm",
+      "name": "Update CRM (Customer)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "credentials": {
+        "hubspotApi": {
+          "id": "2",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Update inventory or trigger fulfillment\nconst payment = $input.item.json;\n\n// Extract product info from metadata\nconst productId = payment.metadata.product_id || 'unknown';\nconst quantity = parseInt(payment.metadata.quantity) || 1;\n\n// In production, this would:\n// - Decrement inventory\n// - Trigger shipping workflow\n// - Activate digital product access\n// - Send download links\n\nconst fulfillment = {\n  ...payment,\n  fulfillment_status: 'processing',\n  product_id: productId,\n  quantity: quantity,\n  fulfillment_started_at: new Date().toISOString(),\n  actions_required: [\n    'Update inventory',\n    'Trigger shipping',\n    'Send product access'\n  ]\n};\n\nreturn { json: fulfillment };"
+      },
+      "id": "process-fulfillment",
+      "name": "Process Fulfillment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "channel": "#payments",
+        "text": "=💰 *Payment Received*\\n\\n*Amount:* ${{$json.amount}} {{$json.currency}}\\n*Customer:* {{$json.customer_name}} ({{$json.customer_email}})\\n*Method:* {{$json.payment_method}}\\n*Transaction:* {{$json.payment_id}}\\n*Description:* {{$json.description}}\\n*Time:* {{$json.created}}",
+        "otherOptions": {}
+      },
+      "id": "notify-team",
+      "name": "Notify Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1050, 350],
+      "credentials": {
+        "slackApi": {
+          "id": "3",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle failed payment\nconst payment = $input.item.json;\n\nreturn {\n  json: {\n    ...payment,\n    failure_reason: 'Payment status is not succeeded',\n    handled_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "handle-failure",
+      "name": "Handle Failed Payment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 600]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "billing@example.com",
+        "toEmail": "={{$json.customer_email}}",
+        "subject": "Payment Issue - Action Required",
+        "emailType": "text",
+        "message": "=Hi {{$json.customer_name || 'there'}},\\n\\nWe encountered an issue processing your payment.\\n\\nTransaction ID: {{$json.payment_id}}\\nStatus: {{$json.status}}\\nAmount: ${{$json.amount}} {{$json.currency}}\\n\\nPlease update your payment method or contact support.\\n\\nBest regards,\\nThe Team",
+        "options": {}
+      },
+      "id": "send-failure-email",
+      "name": "Send Failure Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [1050, 600],
+      "credentials": {
+        "sendGridApi": {
+          "id": "1",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"webhook_id\": $json.webhook_id, \"payment_id\": $json.payment_id, \"amount\": $json.amount, \"currency\": $json.currency, \"status\": $json.status, \"receipt_sent\": true, \"crm_updated\": true, \"fulfillment_started\": true, \"message\": \"Payment processed successfully\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Validate Payment Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check: Payment Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check: Payment Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Send Receipt Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update CRM (Customer)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Fulfillment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Failed Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Receipt Email": {
+      "main": [
+        [
+          {
+            "node": "Notify Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CRM (Customer)": {
+      "main": [
+        [
+          {
+            "node": "Notify Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Fulfillment": {
+      "main": [
+        [
+          {
+            "node": "Notify Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Failed Payment": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Failure Email": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "payment-processor"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "vip"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

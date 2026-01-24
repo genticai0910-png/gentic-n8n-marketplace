@@ -1,0 +1,266 @@
+{
+  "name": "Webhook Router - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-router",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "webhook-router-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse and classify incoming webhook\nconst payload = $input.item.json;\n\n// Detect webhook source and event type\nlet source = 'unknown';\nlet eventType = 'unknown';\nlet routeTargets = [];\n\n// Stripe webhook detection\nif (payload.object && payload.type && payload.id?.startsWith('evt_')) {\n  source = 'stripe';\n  eventType = payload.type; // e.g. payment_intent.succeeded\n  routeTargets = ['crm', 'email', 'slack'];\n}\n// Twilio webhook detection\nelse if (payload.CallSid || payload.MessageSid) {\n  source = 'twilio';\n  eventType = payload.CallStatus ? 'call' : 'sms';\n  routeTargets = ['crm', 'voice_ai'];\n}\n// HubSpot webhook detection\nelse if (payload.subscriptionType || payload.portalId) {\n  source = 'hubspot';\n  eventType = payload.subscriptionType || 'contact.updated';\n  routeTargets = ['salesforce', 'slack'];\n}\n// Calendly webhook detection\nelse if (payload.event && payload.payload?.event_type) {\n  source = 'calendly';\n  eventType = payload.event; // e.g. invitee.created\n  routeTargets = ['crm', 'email', 'sms'];\n}\n// Generic webhook\nelse {\n  source = payload.source || 'generic';\n  eventType = payload.event_type || payload.type || 'custom';\n  routeTargets = ['crm'];\n}\n\nreturn {\n  json: {\n    ...payload,\n    _router_metadata: {\n      source: source,\n      event_type: eventType,\n      route_targets: routeTargets,\n      received_at: new Date().toISOString(),\n      webhook_id: `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n    }\n  }\n};"
+      },
+      "id": "parse-webhook",
+      "name": "Parse & Classify Webhook",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.hubspot.com/crm/v3/objects/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotApi",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "properties",
+              "value": "={{JSON.stringify({ email: $json.email || 'unknown@example.com', source: $json._router_metadata.source, event_type: $json._router_metadata.event_type })}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-to-crm",
+      "name": "Route to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 250],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "notifications@example.com",
+        "toEmail": "={{$json.email || 'admin@example.com'}}",
+        "subject": "=Webhook received: {{$json._router_metadata.event_type}}",
+        "emailType": "text",
+        "message": "=Source: {{$json._router_metadata.source}}\\nEvent: {{$json._router_metadata.event_type}}\\nReceived: {{$json._router_metadata.received_at}}",
+        "options": {}
+      },
+      "id": "route-to-email",
+      "name": "Route to Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [650, 350],
+      "credentials": {
+        "sendGridApi": {
+          "id": "2",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#webhook-events",
+        "text": "=📡 *Webhook Received*\\n\\n*Source:* {{$json._router_metadata.source}}\\n*Event:* {{$json._router_metadata.event_type}}\\n*Time:* {{$json._router_metadata.received_at}}\\n*ID:* {{$json._router_metadata.webhook_id}}",
+        "otherOptions": {}
+      },
+      "id": "route-to-slack",
+      "name": "Route to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [650, 450],
+      "credentials": {
+        "slackApi": {
+          "id": "3",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.custom_destination_url || 'https://example.com/webhook'}}",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "payload",
+              "value": "={{JSON.stringify($json)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-to-custom",
+      "name": "Route to Custom Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 550]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate routing results\nconst results = $input.all();\n\nconst summary = {\n  webhook_id: results[0]?.json._router_metadata?.webhook_id,\n  source: results[0]?.json._router_metadata?.source,\n  event_type: results[0]?.json._router_metadata?.event_type,\n  routes_completed: results.length,\n  successful_routes: results.filter(r => r.json.statusCode !== 400 && r.json.statusCode !== 500).length,\n  failed_routes: results.filter(r => r.json.statusCode === 400 || r.json.statusCode === 500).length,\n  processed_at: new Date().toISOString()\n};\n\nreturn { json: summary };"
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Routing Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"webhook_id\": $json.webhook_id, \"source\": $json.source, \"event_type\": $json.event_type, \"routes_completed\": $json.routes_completed, \"successful_routes\": $json.successful_routes, \"failed_routes\": $json.failed_routes, \"message\": \"Webhook routed successfully\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Parse & Classify Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Classify Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route to CRM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Custom Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to CRM": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Routing Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Email": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Routing Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Slack": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Routing Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Custom Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Routing Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Routing Results": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "webhook-router"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "basic"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

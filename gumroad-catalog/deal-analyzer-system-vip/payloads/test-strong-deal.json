@@ -1,0 +1,11 @@
+{
+  "address": "1234 Oak Street",
+  "city": "Phoenix",
+  "state": "AZ",
+  "zip": "85001",
+  "bedrooms": 3,
+  "bathrooms": 2,
+  "sqft": 1500,
+  "asking_price": 280000,
+  "property_condition": "average"
+}

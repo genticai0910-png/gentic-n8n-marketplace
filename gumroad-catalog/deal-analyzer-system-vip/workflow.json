@@ -1,0 +1,425 @@
+{
+  "name": "Deal Analyzer System - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-analyzer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "deal-analyzer-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate and structure property input\nconst input = $input.item.json;\n\nif (!input.address || !input.city || !input.state) {\n  throw new Error('Missing required fields: address, city, state');\n}\n\nconst property = {\n  address: input.address,\n  city: input.city,\n  state: input.state,\n  zip: input.zip || '',\n  bedrooms: input.bedrooms || 3,\n  bathrooms: input.bathrooms || 2,\n  sqft: input.sqft || null,\n  asking_price: parseFloat(input.asking_price) || null,\n  property_condition: input.property_condition || 'average',\n  analysis_id: `deal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  submitted_at: new Date().toISOString()\n};\n\nreturn { json: property };"
+      },
+      "id": "validate-input",
+      "name": "Validate Property Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.housecanary.com/v2/property/value",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "houseCanaryApi",
+        "method": "GET",
+        "qs": {
+          "parameters": [
+            {
+              "name": "address",
+              "value": "={{$json.address}}"
+            },
+            {
+              "name": "city",
+              "value": "={{$json.city}}"
+            },
+            {
+              "name": "state",
+              "value": "={{$json.state}}"
+            },
+            {
+              "name": "zipcode",
+              "value": "={{$json.zip}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-comps",
+      "name": "Fetch Property Comps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300],
+      "credentials": {
+        "houseCanaryApi": {
+          "id": "1",
+          "name": "HouseCanary API"
+        }
+      },
+      "notes": "Alternative: Zillow API, Redfin API, or Attom Data"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.attomdata.com/propertyapi/v1.0.0/property/detail",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "attomDataApi",
+        "method": "GET",
+        "qs": {
+          "parameters": [
+            {
+              "name": "address1",
+              "value": "={{$json.address}}"
+            },
+            {
+              "name": "address2",
+              "value": "={{$json.city}}, {{$json.state}} {{$json.zip}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-details",
+      "name": "Fetch Property Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 500],
+      "credentials": {
+        "attomDataApi": {
+          "id": "2",
+          "name": "Attom Data API"
+        }
+      },
+      "notes": "Gets tax records, building details, liens"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Calculate ARV (After Repair Value) and MAO (Maximum Allowable Offer)\nconst property = $node['Validate Property Input'].json;\nconst comps = $node['Fetch Property Comps'].json;\nconst details = $node['Fetch Property Details'].json;\n\n// Extract comparable sales data\nconst avgCompPrice = comps.property?.value?.price?.mean || property.asking_price * 1.1;\nconst highCompPrice = comps.property?.value?.price?.high || avgCompPrice * 1.15;\nconst lowCompPrice = comps.property?.value?.price?.low || avgCompPrice * 0.85;\n\n// Estimate repair costs based on condition\nconst repairCosts = {\n  'excellent': property.sqft * 0,\n  'good': property.sqft * 10,\n  'average': property.sqft * 20,\n  'fair': property.sqft * 35,\n  'poor': property.sqft * 50\n};\n\nconst estimatedRepairs = repairCosts[property.property_condition] || repairCosts['average'];\n\n// Calculate ARV (conservative estimate)\nconst arv = avgCompPrice;\n\n// MAO Formula: ARV × 70% - Repairs - Assignment Fee\nconst wholesaleMargin = 0.70; // 70% rule for wholesalers\nconst assignmentFee = 10000; // Typical wholesale fee\nconst mao = (arv * wholesaleMargin) - estimatedRepairs - assignmentFee;\n\n// Calculate potential profit\nconst askingPrice = property.asking_price || 0;\nconst potentialProfit = (askingPrice > 0) ? (arv - askingPrice - estimatedRepairs) : 0;\nconst profitMargin = (askingPrice > 0) ? ((potentialProfit / askingPrice) * 100) : 0;\n\n// Deal scoring (0-100)\nlet score = 50; // Base score\n\n// Score adjustments\nif (askingPrice > 0 && askingPrice <= mao) score += 30; // Good deal\nif (profitMargin > 30) score += 10; // Great margin\nif (profitMargin > 50) score += 10; // Exceptional margin\nif (property.property_condition === 'good' || property.property_condition === 'excellent') score += 10;\n\nconst analysis = {\n  ...property,\n  arv: Math.round(arv),\n  mao: Math.round(mao),\n  estimated_repairs: Math.round(estimatedRepairs),\n  potential_profit: Math.round(potentialProfit),\n  profit_margin: Math.round(profitMargin * 10) / 10,\n  deal_score: Math.min(100, Math.max(0, score)),\n  comp_data: {\n    avg_price: Math.round(avgCompPrice),\n    high_price: Math.round(highCompPrice),\n    low_price: Math.round(lowCompPrice)\n  },\n  recommendation: score >= 75 ? 'STRONG BUY' : score >= 60 ? 'CONSIDER' : score >= 40 ? 'MARGINAL' : 'PASS',\n  analyzed_at: new Date().toISOString()\n};\n\nreturn { json: analysis };"
+      },
+      "id": "calculate-arv-mao",
+      "name": "Calculate ARV & MAO",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=You are a real estate investment analyst. Provide a detailed deal analysis summary.\n\nProperty: {{$json.address}}, {{$json.city}}, {{$json.state}}\nAsking Price: ${{$json.asking_price}}\nARV (After Repair Value): ${{$json.arv}}\nMAO (Max Allowable Offer): ${{$json.mao}}\nEstimated Repairs: ${{$json.estimated_repairs}}\nPotential Profit: ${{$json.potential_profit}}\nProfit Margin: {{$json.profit_margin}}%\nDeal Score: {{$json.deal_score}}/100\nCondition: {{$json.property_condition}}\n\nProvide:\n1. Investment Summary (2-3 sentences)\n2. Key Risks (2-3 bullet points)\n3. Action Items (2-3 bullet points)\n4. Exit Strategy Recommendation\n\nBe concise and actionable."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "ai-analysis",
+      "name": "AI Deal Summary",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "3",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pdfmonkey.io/api/v1/documents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "pdfMonkeyApi",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document[template_id]",
+              "value": "deal-analysis-template"
+            },
+            {
+              "name": "document[payload][address]",
+              "value": "={{$json.address}}"
+            },
+            {
+              "name": "document[payload][city_state]",
+              "value": "={{$json.city}}, {{$json.state}}"
+            },
+            {
+              "name": "document[payload][arv]",
+              "value": "={{$json.arv}}"
+            },
+            {
+              "name": "document[payload][mao]",
+              "value": "={{$json.mao}}"
+            },
+            {
+              "name": "document[payload][repairs]",
+              "value": "={{$json.estimated_repairs}}"
+            },
+            {
+              "name": "document[payload][profit]",
+              "value": "={{$json.potential_profit}}"
+            },
+            {
+              "name": "document[payload][score]",
+              "value": "={{$json.deal_score}}"
+            },
+            {
+              "name": "document[payload][recommendation]",
+              "value": "={{$json.recommendation}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-pdf",
+      "name": "Generate Deal PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 500],
+      "credentials": {
+        "pdfMonkeyApi": {
+          "id": "4",
+          "name": "PDFMonkey API"
+        }
+      },
+      "notes": "Alternative: DocRaptor, HTML-to-PDF node"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Merge AI analysis with deal data\nconst dealData = $node['Calculate ARV & MAO'].json;\nconst aiSummary = $node['AI Deal Summary'].json.message.content;\nconst pdfData = $node['Generate Deal PDF'].json;\n\nconst finalReport = {\n  ...dealData,\n  ai_analysis: aiSummary,\n  pdf_url: pdfData.document?.download_url || 'Generating...',\n  report_ready: true\n};\n\nreturn { json: finalReport };"
+      },
+      "id": "merge-report",
+      "name": "Merge Report Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.deal_score}}",
+              "operation": "largerEqual",
+              "value2": 75
+            }
+          ]
+        }
+      },
+      "id": "route-deal",
+      "name": "Route: Strong Deal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#hot-deals",
+        "text": "=🔥 *STRONG DEAL ALERT* (Score: {{$json.deal_score}}/100)\\n\\n*Property:* {{$json.address}}, {{$json.city}}, {{$json.state}}\\n*Asking:* ${{$json.asking_price}}\\n*ARV:* ${{$json.arv}}\\n*MAO:* ${{$json.mao}}\\n*Potential Profit:* ${{$json.potential_profit}} ({{$json.profit_margin}}% margin)\\n*Recommendation:* {{$json.recommendation}}\\n*PDF Report:* {{$json.pdf_url}}\\n*Analysis ID:* {{$json.analysis_id}}",
+        "otherOptions": {}
+      },
+      "id": "notify-hot",
+      "name": "Notify: Hot Deal",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "5",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"analysis_id\": $json.analysis_id, \"deal_score\": $json.deal_score, \"recommendation\": $json.recommendation, \"arv\": $json.arv, \"mao\": $json.mao, \"potential_profit\": $json.potential_profit, \"profit_margin\": $json.profit_margin, \"pdf_url\": $json.pdf_url, \"ai_analysis\": $json.ai_analysis, \"message\": \"Deal analysis complete\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Validate Property Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Property Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Property Comps",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Property Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Property Comps": {
+      "main": [
+        [
+          {
+            "node": "Calculate ARV & MAO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Property Details": {
+      "main": [
+        [
+          {
+            "node": "Calculate ARV & MAO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate ARV & MAO": {
+      "main": [
+        [
+          {
+            "node": "AI Deal Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Deal PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Deal Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Deal PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Report Data": {
+      "main": [
+        [
+          {
+            "node": "Route: Strong Deal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route: Strong Deal?": {
+      "main": [
+        [
+          {
+            "node": "Notify: Hot Deal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: Hot Deal": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "deal-analyzer"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "vip"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

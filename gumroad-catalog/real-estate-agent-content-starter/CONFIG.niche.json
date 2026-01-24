@@ -1,0 +1,55 @@
+{
+  "$schema": "https://gentic.ai/schemas/content-repurpose-config/v1.json",
+  "version": "1.0.0",
+  "niche": {
+    "id": "real-estate-agent",
+    "name": "Real Estate Agent Content Pack",
+    "industry": "",
+    "target_audience": "",
+    "outcome_statement": ""
+  },
+  "avatar": {
+    "recommended_style": "professional_friendly",
+    "appearance": {
+      "attire": "",
+      "setting": "",
+      "energy": ""
+    },
+    "voice_characteristics": {
+      "tone": "",
+      "pace": "",
+      "personality": ""
+    }
+  },
+  "platforms": {
+    "priority_order": [
+      "tiktok",
+      "instagram",
+      "youtube",
+      "facebook",
+      "linkedin"
+    ]
+  },
+  "content": {
+    "pillars": [],
+    "content_ratio": {
+      "educational": 40,
+      "entertaining": 30,
+      "promotional": 20,
+      "personal": 10
+    }
+  },
+  "hooks_starter": [],
+  "content_ideas_starter": [],
+  "hashtags": {
+    "tiktok": [],
+    "instagram_high_volume": [],
+    "instagram_niche": []
+  },
+  "rewrite_instructions": {
+    "system_prompt": "",
+    "style_guidelines": [],
+    "banned_phrases": []
+  },
+  "compliance": {}
+}

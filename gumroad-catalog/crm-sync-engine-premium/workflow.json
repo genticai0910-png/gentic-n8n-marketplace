@@ -1,0 +1,244 @@
+{
+  "name": "CRM Sync Engine - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger (Every 15min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 100,
+        "filters": {
+          "lastmodifieddate": "={{Date.now() - (20 * 60 * 1000)}}"
+        }
+      },
+      "id": "fetch-hubspot",
+      "name": "Fetch from HubSpot",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [450, 400],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      },
+      "notes": "Fetch contacts modified in last 20 minutes"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Transform HubSpot contact to Salesforce format\nconst contacts = $input.all();\n\nconst transformed = contacts.map(item => {\n  const hs = item.json.properties;\n  \n  return {\n    json: {\n      // Salesforce fields\n      Email: hs.email,\n      FirstName: hs.firstname || '',\n      LastName: hs.lastname || 'Unknown',\n      Company: hs.company || '',\n      Phone: hs.phone || '',\n      LeadSource: hs.hs_analytics_source || 'HubSpot Import',\n      Status: hs.hs_lead_status || 'Open',\n      // Custom fields\n      HubSpot_ID__c: item.json.id,\n      Last_Sync__c: new Date().toISOString(),\n      Lead_Score__c: hs.hubspotscore || 0\n    }\n  };\n});\n\nreturn transformed;"
+      },
+      "id": "transform-data",
+      "name": "Transform HubSpot → Salesforce",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "resource": "lead",
+        "operation": "upsert",
+        "externalId": "Email",
+        "email": "={{$json.Email}}",
+        "additionalFields": {
+          "FirstName": "={{$json.FirstName}}",
+          "LastName": "={{$json.LastName}}",
+          "Company": "={{$json.Company}}",
+          "Phone": "={{$json.Phone}}",
+          "LeadSource": "={{$json.LeadSource}}",
+          "Status": "={{$json.Status}}"
+        }
+      },
+      "id": "upsert-salesforce",
+      "name": "Upsert to Salesforce",
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "credentials": {
+        "salesforceOAuth2Api": {
+          "id": "2",
+          "name": "Salesforce OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log sync results\nconst results = $input.all();\n\nconst summary = {\n  sync_completed_at: new Date().toISOString(),\n  records_processed: results.length,\n  successful: results.filter(r => r.json.success).length,\n  failed: results.filter(r => !r.json.success).length,\n  sync_direction: 'HubSpot → Salesforce'\n};\n\nreturn { json: summary };"
+      },
+      "id": "log-results",
+      "name": "Log Sync Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.failed}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-errors",
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#crm-sync-alerts",
+        "text": "=⚠️ *CRM Sync Warning*\\n\\n*Direction:* {{$json.sync_direction}}\\n*Processed:* {{$json.records_processed}}\\n*Successful:* {{$json.successful}}\\n*Failed:* {{$json.failed}}\\n*Time:* {{$json.sync_completed_at}}",
+        "otherOptions": {}
+      },
+      "id": "alert-errors",
+      "name": "Alert on Errors",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "3",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Success - no alerts needed\nreturn $input.all();"
+      },
+      "id": "complete",
+      "name": "Sync Complete",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 15min)": {
+      "main": [
+        [
+          {
+            "node": "Fetch from HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch from HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Transform HubSpot → Salesforce",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform HubSpot → Salesforce": {
+      "main": [
+        [
+          {
+            "node": "Upsert to Salesforce",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert to Salesforce": {
+      "main": [
+        [
+          {
+            "node": "Log Sync Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Sync Results": {
+      "main": [
+        [
+          {
+            "node": "Check for Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Errors": {
+      "main": [
+        [
+          {
+            "node": "Alert on Errors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "crm-sync"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "premium"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

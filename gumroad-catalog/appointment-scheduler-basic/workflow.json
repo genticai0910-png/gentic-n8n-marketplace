@@ -1,0 +1,290 @@
+{
+  "name": "Appointment Scheduler - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400],
+      "webhookId": "appointment-scheduler-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate appointment request\nconst input = $input.item.json;\n\nif (!input.email || !input.name) {\n  throw new Error('Email and name are required');\n}\n\nif (!input.appointment_type) {\n  throw new Error('Appointment type required (walkthrough, consultation, inspection)');\n}\n\nconst appointment = {\n  email: input.email.trim().toLowerCase(),\n  name: input.name,\n  phone: input.phone || '',\n  appointment_type: input.appointment_type,\n  preferred_date: input.preferred_date || null,\n  preferred_time: input.preferred_time || null,\n  notes: input.notes || '',\n  property_address: input.property_address || '',\n  appointment_id: `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n  requested_at: new Date().toISOString()\n};\n\nreturn { json: appointment };"
+      },
+      "id": "validate-input",
+      "name": "Validate Appointment Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.calendly.com/event_types/user/{{$credentials.calendlyApi.user_uri}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "calendlyApi",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-availability",
+      "name": "Get Available Slots",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 400],
+      "credentials": {
+        "calendlyApi": {
+          "id": "1",
+          "name": "Calendly API"
+        }
+      },
+      "notes": "Alternative: Cal.com, Google Calendar"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Find next available slot\nconst appointment = $node['Validate Appointment Request'].json;\nconst availability = $input.item.json;\n\nconst preferredDate = appointment.preferred_date ? new Date(appointment.preferred_date) : null;\nconst now = new Date();\n\n// Default scheduling logic\nlet scheduledTime;\nif (preferredDate && preferredDate > now) {\n  // Use preferred date if valid\n  scheduledTime = preferredDate;\n} else {\n  // Schedule for next business day at 2pm\n  const tomorrow = new Date(now);\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  tomorrow.setHours(14, 0, 0, 0);\n  scheduledTime = tomorrow;\n}\n\nreturn {\n  json: {\n    ...appointment,\n    scheduled_time: scheduledTime.toISOString(),\n    scheduled_time_readable: scheduledTime.toLocaleString('en-US', { \n      weekday: 'long', \n      year: 'numeric', \n      month: 'long', \n      day: 'numeric',\n      hour: 'numeric',\n      minute: '2-digit',\n      timeZoneName: 'short'\n    }),\n    duration_minutes: 30,\n    meeting_type: 'in-person'\n  }\n};"
+      },
+      "id": "schedule-time",
+      "name": "Schedule Time Slot",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "calendar": "primary",
+        "start": "={{$json.scheduled_time}}",
+        "end": "={{new Date(new Date($json.scheduled_time).getTime() + 30 * 60000).toISOString()}}",
+        "summary": "=Property {{$json.appointment_type}} - {{$json.name}}",
+        "description": "=Appointment Type: {{$json.appointment_type}}\\nClient: {{$json.name}}\\nEmail: {{$json.email}}\\nPhone: {{$json.phone}}\\nProperty: {{$json.property_address}}\\nNotes: {{$json.notes}}\\nAppointment ID: {{$json.appointment_id}}",
+        "attendees": "={{$json.email}}"
+      },
+      "id": "create-calendar-event",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "2",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "sarah@example.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "=Your {{$json.appointment_type}} is confirmed!",
+        "emailType": "text",
+        "message": "=Hi {{$json.name}},\\n\\nYour {{$json.appointment_type}} appointment is confirmed!\\n\\nDate & Time: {{$json.scheduled_time_readable}}\\nDuration: {{$json.duration_minutes}} minutes\\nLocation: {{$json.property_address || 'TBD'}}\\n\\nI've sent you a calendar invite with all the details.\\n\\nIf you need to reschedule, please reply to this email or call {{$json.phone}}.\\n\\nLooking forward to meeting you!\\n\\nBest,\\nSarah",
+        "options": {
+          "trackOpens": true
+        }
+      },
+      "id": "send-confirmation",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "sendGridApi": {
+          "id": "3",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "+15551234567",
+        "to": "={{$json.phone}}",
+        "message": "=Hi {{$json.name}}! Your {{$json.appointment_type}} is confirmed for {{$json.scheduled_time_readable}}. Check your email for details. Reply CONFIRM to acknowledge. - Sarah"
+      },
+      "id": "send-sms",
+      "name": "Send SMS Reminder",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "credentials": {
+        "twilioApi": {
+          "id": "4",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{$json.email}}",
+        "additionalFields": {
+          "firstname": "={{$json.name.split(' ')[0]}}",
+          "lastname": "={{$json.name.split(' ').slice(1).join(' ')}}",
+          "phone": "={{$json.phone}}",
+          "hs_lead_status": "APPOINTMENT_SCHEDULED",
+          "appointment_id": "={{$json.appointment_id}}",
+          "appointment_type": "={{$json.appointment_type}}",
+          "appointment_date": "={{$json.scheduled_time}}"
+        }
+      },
+      "id": "update-crm",
+      "name": "Update CRM Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "credentials": {
+        "hubspotApi": {
+          "id": "5",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"appointment_id\": $json.appointment_id, \"scheduled_time\": $json.scheduled_time, \"scheduled_time_readable\": $json.scheduled_time_readable, \"confirmation_sent\": true, \"calendar_event_created\": true, \"message\": \"Appointment confirmed\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Validate Appointment Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Appointment Request": {
+      "main": [
+        [
+          {
+            "node": "Get Available Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Available Slots": {
+      "main": [
+        [
+          {
+            "node": "Schedule Time Slot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Time Slot": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send SMS Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS Reminder": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CRM Contact": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "appointment-scheduler"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "basic"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}

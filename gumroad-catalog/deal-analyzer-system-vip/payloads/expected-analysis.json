@@ -1,0 +1,60 @@
+{
+  "strong_deal_expected": {
+    "asking_price": 280000,
+    "arv": 425000,
+    "mao": 267500,
+    "estimated_repairs": 30000,
+    "potential_profit": 115000,
+    "profit_margin": 41.1,
+    "deal_score": 90,
+    "recommendation": "STRONG BUY",
+    "explanation": {
+      "arv_calculation": "Based on comps averaging $425K for 1500 sqft 3bed/2bath in Phoenix 85001",
+      "mao_formula": "ARV ($425K) × 70% = $297.5K - Repairs ($30K) - Fee ($10K) = $257.5K MAO",
+      "score_breakdown": {
+        "base": 50,
+        "asking_below_mao": 30,
+        "profit_margin_over_30": 10,
+        "total": 90
+      }
+    },
+    "api_calls": {
+      "housecanary": "Property comp data with avg $425K",
+      "attom": "Tax records, building details, no liens",
+      "openai": "AI-generated investment summary with risks and action items",
+      "pdfmonkey": "Professional PDF report with charts"
+    },
+    "actions_taken": [
+      "Deal scored 90/100 (STRONG BUY)",
+      "Slack notification to #hot-deals",
+      "PDF report generated",
+      "CRM could be updated (optional node)"
+    ]
+  },
+  "marginal_deal_expected": {
+    "asking_price": 450000,
+    "arv": 520000,
+    "mao": 287000,
+    "estimated_repairs": 77000,
+    "potential_profit": -7000,
+    "profit_margin": -1.6,
+    "deal_score": 40,
+    "recommendation": "MARGINAL",
+    "explanation": {
+      "arv_calculation": "Based on comps averaging $520K for 2200 sqft 4bed/3bath in Scottsdale 85250",
+      "mao_formula": "ARV ($520K) × 70% = $364K - Repairs ($77K) - Fee ($10K) = $277K MAO",
+      "score_breakdown": {
+        "base": 50,
+        "asking_above_mao": -10,
+        "negative_profit": 0,
+        "total": 40
+      }
+    },
+    "actions_taken": [
+      "Deal scored 40/100 (MARGINAL)",
+      "No Slack notification (threshold not met)",
+      "PDF report still generated for records",
+      "Response includes full analysis for review"
+    ]
+  }
+}

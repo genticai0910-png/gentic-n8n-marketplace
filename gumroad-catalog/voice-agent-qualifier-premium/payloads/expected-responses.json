@@ -1,0 +1,55 @@
+{
+  "hot_lead_expected": {
+    "score": 85,
+    "priority": "hot",
+    "reason": "Motivated seller with urgent 60-day timeline, qualified $425K budget, decision maker, specific property details provided (1234 Oak Street, 3bed/2bath), high engagement, open to cash offer",
+    "next_action": "schedule_walkthrough",
+    "timeline": "60 days",
+    "budget_range": "$425,000",
+    "crm_status": "HOT",
+    "actions_taken": [
+      "SMS sent with appointment request",
+      "Calendar invite created",
+      "Slack notification to #qualified-leads",
+      "CRM contact updated with score 85"
+    ],
+    "expected_sms": "Hi John Doe! Thanks for your interest in selling your property. Based on our conversation, I'd like to schedule a walkthrough. I've sent you a calendar invite - does tomorrow at 2pm work? Reply YES to confirm. - Sarah"
+  },
+  "warm_lead_expected": {
+    "score": 60,
+    "priority": "warm",
+    "reason": "Interested but not urgent, 6-month timeline, needs spousal approval (not sole decision maker), vague pricing ($500K range), wants more information, moderate engagement",
+    "next_action": "send_nurture",
+    "timeline": "6 months",
+    "budget_range": "$500,000 (estimated)",
+    "crm_status": "WARM",
+    "actions_taken": [
+      "SMS sent with comp analysis mention",
+      "Email nurture sequence triggered",
+      "CRM contact updated with score 60"
+    ],
+    "expected_sms": "Hi Mike Thompson! Great talking to you. I'm sending you our Seller's Guide via email with comp analysis for your area. Let me know if you have questions! - Sarah"
+  },
+  "cold_lead_expected": {
+    "score": 25,
+    "priority": "cold",
+    "reason": "Not motivated, filled form out of curiosity only, no timeline, vague property details, low engagement, reluctant tone",
+    "next_action": "drip_campaign",
+    "timeline": "not disclosed",
+    "budget_range": "not disclosed",
+    "crm_status": "COLD",
+    "actions_taken": [
+      "Added to 30-day nurture drip campaign",
+      "CRM contact updated with score 25",
+      "No immediate follow-up"
+    ],
+    "expected_response": {
+      "success": true,
+      "lead_id": "lead_voice_<timestamp>_<random>",
+      "score": 25,
+      "priority": "cold",
+      "next_action": "drip_campaign",
+      "message": "Lead qualified and processed"
+    }
+  }
+}

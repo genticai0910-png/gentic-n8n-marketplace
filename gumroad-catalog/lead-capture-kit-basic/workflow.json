@@ -1,0 +1,221 @@
+{
+  "name": "Lead Capture Kit - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "lead-capture-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.email}}",
+              "operation": "contains",
+              "value2": "@"
+            }
+          ]
+        }
+      },
+      "id": "validate-email",
+      "name": "Validate Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract and clean lead data\nconst lead = {\n  email: $input.item.json.email?.trim().toLowerCase(),\n  name: $input.item.json.name || $input.item.json.first_name + ' ' + $input.item.json.last_name || '',\n  phone: $input.item.json.phone || '',\n  company: $input.item.json.company || '',\n  source: $input.item.json.source || 'website',\n  captured_at: new Date().toISOString(),\n  lead_id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn { json: lead };"
+      },
+      "id": "format-lead",
+      "name": "Format Lead Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "email": "={{$json.email}}",
+        "additionalFields": {
+          "firstname": "={{$json.name}}",
+          "phone": "={{$json.phone}}",
+          "company": "={{$json.company}}",
+          "lifecyclestage": "lead",
+          "hs_lead_status": "NEW"
+        }
+      },
+      "id": "crm-hubspot",
+      "name": "Create Contact (HubSpot)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      },
+      "disabled": false,
+      "notes": "Replace with your CRM credentials"
+    },
+    {
+      "parameters": {
+        "channel": "#leads",
+        "text": "=🎯 New Lead Captured!\n\n*Name:* {{$json.name}}\n*Email:* {{$json.email}}\n*Phone:* {{$json.phone}}\n*Company:* {{$json.company}}\n*Source:* {{$json.source}}\n*Lead ID:* {{$json.lead_id}}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "id": "notify-slack",
+      "name": "Notify Team (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [850, 350],
+      "credentials": {
+        "slackApi": {
+          "id": "2",
+          "name": "Slack"
+        }
+      },
+      "disabled": false,
+      "notes": "Optional: Slack notifications"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"lead_id\": $json.lead_id, \"message\": \"Lead captured successfully\" } }}"
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ { \"success\": false, \"error\": \"Invalid email address\" } }}"
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Validate Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Email": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Create Contact (HubSpot)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Team (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Contact (HubSpot)": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team (Slack)": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "1",
+      "name": "lead-capture"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "2",
+      "name": "basic"
+    },
+    {
+      "createdAt": "2026-01-23T00:00:00.000Z",
+      "updatedAt": "2026-01-23T00:00:00.000Z",
+      "id": "3",
+      "name": "production-ready"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "production"
+  }
+}
