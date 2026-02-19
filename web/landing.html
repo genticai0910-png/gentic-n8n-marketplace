@@ -3,7 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Production-Ready n8n Automations</title>
+  <title>Production-Ready n8n Automations | Gentic AI Marketplace</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Battle-tested n8n automation templates from Gentic AI. Production-ready workflows for lead capture, deal analysis, content creation, and voice AI. Import, configure, and deploy in minutes.">
+  <meta name="keywords" content="n8n templates, n8n workflows, automation templates, lead capture, deal analyzer, voice AI, content automation">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Production-Ready n8n Automations | Gentic AI">
+  <meta property="og:description" content="Battle-tested n8n automation templates. Import, configure, and deploy in minutes instead of hours.">
+  <meta property="og:url" content="https://gentic-n8n.deals">
+  <meta property="og:site_name" content="Gentic AI Marketplace">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Production-Ready n8n Automations | Gentic AI">
+  <meta name="twitter:description" content="Battle-tested n8n automation templates. Import, configure, and deploy in minutes instead of hours.">
+
+  <!-- Favicon (inline SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23ec4899'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%233b82f6'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='23' font-size='20' font-weight='700' font-family='system-ui' fill='white' text-anchor='middle'>G</text></svg>">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +119,74 @@
     }
 
     .nav-links a:hover {
+      color: var(--accent-cyan);
+    }
+
+    /* Hamburger Menu */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 8px;
+    }
+
+    .hamburger span {
+      display: block;
+      width: 24px;
+      height: 2px;
+      background: var(--text-primary);
+      transition: all 0.3s ease;
+      border-radius: 2px;
+    }
+
+    .hamburger.active span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+
+    .hamburger.active span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      top: 73px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 10, 15, 0.95);
+      backdrop-filter: blur(20px);
+      z-index: 99;
+      padding: 40px 20px;
+    }
+
+    .mobile-nav.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .mobile-nav a {
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 24px;
+      font-weight: 600;
+      padding: 20px;
+      width: 100%;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      transition: color 0.3s;
+    }
+
+    .mobile-nav a:hover {
       color: var(--accent-cyan);
     }
 
@@ -313,6 +400,39 @@
       background: var(--bg-secondary);
     }
 
+    /* Category Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tab {
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid #1f1f2e;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .filter-tab:hover {
+      border-color: rgba(34, 211, 238, 0.3);
+      color: var(--text-primary);
+    }
+
+    .filter-tab.active {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      color: white;
+      border-color: transparent;
+    }
+
     .templates-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -326,10 +446,16 @@
       overflow: hidden;
       transition: all 0.3s ease;
       position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .template-card.hidden {
+      display: none;
     }
 
     .template-card.featured::before {
-      content: "✨ RECOMMENDED";
+      content: "RECOMMENDED";
       position: absolute;
       top: 16px;
       right: 16px;
@@ -370,43 +496,78 @@
       color: var(--text-primary);
     }
 
+    .template-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .template-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+      padding: 24px 24px 0;
+      line-height: 1.4;
+    }
+
+    .template-description {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 0 24px;
+      margin-bottom: 16px;
+      flex: 1;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    .template-description p {
+      display: inline;
+    }
+
+    .template-description p br {
+      display: none;
+    }
+
+    .template-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-top: 1px solid #1f1f2e;
+    }
+
+    .template-category {
+      display: inline-block;
+      background: rgba(34, 211, 238, 0.1);
+      color: var(--accent-cyan);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
     .template-price {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
       color: var(--accent-purple);
     }
 
-    .template-body {
-      padding: 32px;
-    }
-
-    .template-features {
-      list-style: none;
-      margin-bottom: 20px;
-    }
-
-    .template-features li {
-      padding: 8px 0;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .template-features li::before {
-      content: '✓';
-      color: var(--accent-cyan);
-      font-weight: 700;
-      margin-right: 12px;
-    }
-
     .template-cta {
-      width: 100%;
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      width: calc(100% - 48px);
+      margin: 0 24px 24px;
       background: linear-gradient(135deg, #3b82f6, #8b5cf6);
       color: white;
-      padding: 16px;
+      padding: 14px;
       border-radius: 12px;
-      font-weight: 500;
+      font-weight: 600;
+      font-size: 15px;
       border: none;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -448,6 +609,45 @@
     .stat-label {
       color: var(--text-secondary);
       font-size: 16px;
+    }
+
+    /* Terms Section */
+    .terms-section {
+      padding: 80px 0;
+      background: var(--bg-primary);
+    }
+
+    .terms-content {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      border: 1px solid #1f1f2e;
+      border-radius: 20px;
+      padding: 48px;
+    }
+
+    .terms-content h3 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: var(--text-primary);
+    }
+
+    .terms-content h3:first-child {
+      margin-top: 0;
+    }
+
+    .terms-content p {
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      line-height: 1.7;
+    }
+
+    .terms-content ul {
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      padding-left: 24px;
+      line-height: 1.7;
     }
 
     /* Footer */
@@ -495,9 +695,38 @@
         display: none;
       }
 
+      .hamburger {
+        display: flex;
+      }
+
       .features-grid,
       .templates-grid {
         grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 60px 0;
+      }
+
+      .section-title {
+        font-size: 36px;
+      }
+
+      .template-card h3 {
+        font-size: 16px;
+      }
+
+      .terms-content {
+        padding: 32px 24px;
+      }
+
+      .filter-tabs {
+        gap: 8px;
+      }
+
+      .filter-tab {
+        padding: 8px 16px;
+        font-size: 13px;
       }
     }
   </style>
@@ -520,16 +749,30 @@
           <li><a href="#about">About</a></li>
           <li><a href="https://genticai.gumroad.com" target="_blank">Store</a></li>
         </ul>
+        <button class="hamburger" onclick="toggleMobileNav()" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
     </div>
   </nav>
+
+  <!-- Mobile Navigation -->
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#templates" onclick="closeMobileNav()">Templates</a>
+    <a href="#features" onclick="closeMobileNav()">Features</a>
+    <a href="#about" onclick="closeMobileNav()">About</a>
+    <a href="#terms" onclick="closeMobileNav()">Terms</a>
+    <a href="https://genticai.gumroad.com" target="_blank" onclick="closeMobileNav()">Store</a>
+  </div>
 
   <!-- Hero Section -->
   <section class="hero">
     <div class="container">
       <span class="badge">
         <span class="live-dot"></span>
-        LIVE • Production Templates
+        LIVE - Production Templates
       </span>
 
       <h1>
@@ -540,35 +783,8 @@
       <p class="subtitle">AI-Powered automation templates from <strong style="background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Gentic</strong>. Battle-tested workflows that work in production. Import, configure, and deploy in minutes instead of hours.</p>
 
       <div class="cta-group">
-        <button class="btn-primary" onclick="scrollToTemplates()">🚀 Browse Templates</button>
-        <button class="btn-secondary" onclick="scrollToFeatures()">⚙️ Learn More</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Stats -->
-  <section class="stats">
-    <div class="container">
-      <div style="text-align: center; margin-bottom: 40px;">
-        <div style="display: inline-flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid #1f1f2e; padding: 12px 24px; border-radius: 50px;">
-          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;">G</div>
-          <span style="color: var(--text-secondary);">Powered by</span>
-          <span style="background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700; font-size: 20px;">GENTIC AI</span>
-        </div>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-number">20+</div>
-          <div class="stat-label">Ready Templates</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">100+</div>
-          <div class="stat-label">Hours Saved</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">$1,170</div>
-          <div class="stat-label">Total Catalog Value</div>
-        </div>
+        <button class="btn-primary" onclick="scrollToTemplates()">Browse Templates</button>
+        <button class="btn-secondary" onclick="scrollToFeatures()">Learn More</button>
       </div>
     </div>
   </section>
@@ -579,32 +795,32 @@
       <h2 class="section-title">Why Choose Our Templates?</h2>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">⚡</div>
+          <div class="feature-icon">&#x26A1;</div>
           <h3 class="feature-title">Production-Ready</h3>
           <p class="feature-description">Every workflow is battle-tested in real production environments. No toy examples or untested code.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📦</div>
+          <div class="feature-icon">&#x1F4E6;</div>
           <h3 class="feature-title">Import & Deploy</h3>
           <p class="feature-description">Download, import into n8n, configure your credentials, and you're live in minutes.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📚</div>
+          <div class="feature-icon">&#x1F4DA;</div>
           <h3 class="feature-title">Complete Documentation</h3>
           <p class="feature-description">Every template includes setup guides, configuration checklists, and troubleshooting tips.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🔄</div>
+          <div class="feature-icon">&#x1F504;</div>
           <h3 class="feature-title">Free Updates</h3>
           <p class="feature-description">Get lifetime access to updates, improvements, and new features for all your purchased templates.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🛡️</div>
+          <div class="feature-icon">&#x1F6E1;&#xFE0F;</div>
           <h3 class="feature-title">Enterprise Security</h3>
           <p class="feature-description">Built with security best practices. No hardcoded credentials, proper error handling, and sanitized inputs.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">💬</div>
+          <div class="feature-icon">&#x1F4AC;</div>
           <h3 class="feature-title">Support Included</h3>
           <p class="feature-description">Stuck? Our team is here to help via email support and community Discord channel.</p>
         </div>
@@ -616,106 +832,117 @@
   <section class="templates" id="templates">
     <div class="container">
       <h2 class="section-title">Featured Templates</h2>
+
+      <!-- Category Filter Tabs -->
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterTemplates('All')">All</button>
+        <button class="filter-tab" onclick="filterTemplates('Automation')">Automation</button>
+        <button class="filter-tab" onclick="filterTemplates('Content')">Content</button>
+        <button class="filter-tab" onclick="filterTemplates('Real Estate')">Real Estate</button>
+        <button class="filter-tab" onclick="filterTemplates('Voice AI')">Voice AI</button>
+        <button class="filter-tab" onclick="filterTemplates('Lead Gen')">Lead Gen</button>
+      </div>
+
       <div class="templates-grid">
         <div class="template-card" data-category="Automation">
-          <div class="template-icon">📅</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x1F4C5;</div>
           <h3>Appointment Scheduler - n8n Calendar Automation</h3>
-          <p class="template-description"><p>Automate your entire appointment booking process—from request to confirmation.</p><p><br></p><p>The Appointment Sched...</p>
+          <p class="template-description">Automate your entire appointment booking process from request to confirmation. Handles scheduling, reminders, and calendar sync.</p>
           <div class="template-meta">
             <span class="template-category">Automation</span>
             <span class="template-price">$12</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/uqgtp" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/uqgtp" target="_blank" class="template-cta">Get Template</a>
         </div>
-        <div class="template-card" data-category="Content">
-          <div class="template-icon">✍️</div>
+        <div class="template-card featured" data-category="Content">
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x270D;&#xFE0F;</div>
           <h3>Mortgage Broker Content System - 90 Days Complete Social Media Strategy</h3>
-          <p class="template-description"><p>Transform your mortgage business with 90 days of done-for-you social media content—just copy, paste, and post.</p><p>...</p>
+          <p class="template-description">Transform your mortgage business with 90 days of done-for-you social media content. Just copy, paste, and post across all platforms.</p>
           <div class="template-meta">
             <span class="template-category">Content</span>
             <span class="template-price">$77</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/owwqvf" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/owwqvf" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Content">
-          <div class="template-icon">✍️</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x270D;&#xFE0F;</div>
           <h3>Restaurant Owner Social Media Content Pack - 60 Days of Posts + Scripts</h3>
-          <p class="template-description"><p>Fill your tables with 60 days of mouth-watering social media content—designed specifically for restaurants.</p><p><br...</p>
+          <p class="template-description">Fill your tables with 60 days of mouth-watering social media content designed specifically for restaurants.</p>
           <div class="template-meta">
             <span class="template-category">Content</span>
             <span class="template-price">$37</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/tultrw" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/tultrw" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Content">
-          <div class="template-icon">✍️</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x270D;&#xFE0F;</div>
           <h3>Ecommerce Store Social Media Content Pack - 30 Days of Posts</h3>
-          <p class="template-description"><p>Boost your online store sales with 30 days of scroll-stopping social media content—perfect for ecommerce brands.</p><...</p>
+          <p class="template-description">Boost your online store sales with 30 days of scroll-stopping social media content perfect for ecommerce brands.</p>
           <div class="template-meta">
             <span class="template-category">Content</span>
             <span class="template-price">$12</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/butfle" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/butfle" target="_blank" class="template-cta">Get Template</a>
         </div>
-        <div class="template-card" data-category="Content">
-          <div class="template-icon">✍️</div>
+        <div class="template-card featured" data-category="Content">
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x270D;&#xFE0F;</div>
           <h3>SaaS Founder Content System - 90 Days Complete Social Media Strategy</h3>
-          <p class="template-description"><p>Build your SaaS brand on social media with 90 days of done-for-you content—attract users, investors, and talent.</p><...</p>
+          <p class="template-description">Build your SaaS brand on social media with 90 days of done-for-you content. Attract users, investors, and talent.</p>
           <div class="template-meta">
             <span class="template-category">Content</span>
             <span class="template-price">$77</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/jllvl" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/jllvl" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Content">
-          <div class="template-icon">✍️</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x270D;&#xFE0F;</div>
           <h3>Fitness Coach Social Media Content Pack - 60 Days of Posts + Scripts</h3>
-          <p class="template-description"><p>Grow your fitness coaching business with 60 days of motivating social media content—inspire your audience daily.</p><...</p>
+          <p class="template-description">Grow your fitness coaching business with 60 days of motivating social media content to inspire your audience daily.</p>
           <div class="template-meta">
             <span class="template-category">Content</span>
             <span class="template-price">$37</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/pjrvl" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/pjrvl" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Real Estate">
-          <div class="template-icon">🏠</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x1F3E0;</div>
           <h3>Real Estate Agent Social Media Content Pack - 30 Days of Posts</h3>
-          <p class="template-description"><p>Attract more listings and buyers with 30 days of proven social media content—built specifically for real estate agent...</p>
+          <p class="template-description">Attract more listings and buyers with 30 days of proven social media content built specifically for real estate agents.</p>
           <div class="template-meta">
             <span class="template-category">Real Estate</span>
             <span class="template-price">$12</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/ffgiq" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/ffgiq" target="_blank" class="template-cta">Get Template</a>
         </div>
-        <div class="template-card" data-category="Real Estate">
-          <div class="template-icon">🏠</div>
+        <div class="template-card featured" data-category="Real Estate">
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x1F3E0;</div>
           <h3>Deal Analyzer System - Real Estate Investment n8n Workflow</h3>
-          <p class="template-description"><p>Analyze real estate deals in seconds—automated ROI calculations at your fingertips.</p><p><br></p><p>The Deal Analyze...</p>
+          <p class="template-description">Analyze real estate deals in seconds with automated ROI calculations, ARV estimates, and exit strategy recommendations.</p>
           <div class="template-meta">
             <span class="template-category">Real Estate</span>
             <span class="template-price">$77</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/kqalme" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/kqalme" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Voice AI">
-          <div class="template-icon">📞</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x1F4DE;</div>
           <h3>Voice Agent Qualifier - n8n Sales Automation</h3>
-          <p class="template-description"><p>Qualify leads instantly with AI-powered voice automation—never miss a hot prospect again.</p><p><br></p><p>The Voice ...</p>
+          <p class="template-description">Qualify leads instantly with AI-powered voice automation. Never miss a hot prospect again with automated call handling.</p>
           <div class="template-meta">
             <span class="template-category">Voice AI</span>
             <span class="template-price">$37</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/zfiqfd" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/zfiqfd" target="_blank" class="template-cta">Get Template</a>
         </div>
         <div class="template-card" data-category="Lead Gen">
-          <div class="template-icon">🎯</div>
+          <div class="template-icon" style="padding: 24px 24px 0;">&#x1F3AF;</div>
           <h3>Lead Capture Kit - n8n Automation Template</h3>
-          <p class="template-description"><p>Capture and organize leads automatically—build your pipeline while you sleep.</p><p><br></p><p>The Lead Capture Kit i...</p>
+          <p class="template-description">Capture and organize leads automatically. Build your pipeline while you sleep with multi-channel intake and routing.</p>
           <div class="template-meta">
             <span class="template-category">Lead Gen</span>
             <span class="template-price">$12</span>
           </div>
-          <a href="https://genticai.gumroad.com/l/jtbto" target="_blank" class="template-cta" style="display: block; text-align: center; text-decoration: none;">Get Template</a>
+          <a href="https://genticai.gumroad.com/l/jtbto" target="_blank" class="template-cta">Get Template</a>
         </div>
       </div>
     </div>
@@ -724,8 +951,8 @@
   <!-- About Gentic Section -->
   <section class="features" id="about" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.05), rgba(139, 92, 246, 0.05));">
     <div class="container">
-      <div class="section-title" style="text-align: center; margin-bottom: 40px;">
-        <h2 style="font-size: 48px; margin-bottom: 20px;">
+      <div style="text-align: center; margin-bottom: 40px;">
+        <h2 class="section-title" style="margin-bottom: 20px;">
           About <span style="background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Gentic</span>
         </h2>
         <p style="color: var(--text-secondary); font-size: 20px; max-width: 700px; margin: 0 auto;">AI-Powered Insights for Your Business</p>
@@ -759,10 +986,39 @@
 
           <div style="margin-top: 40px;">
             <a href="https://genticai.gumroad.com" target="_blank" class="btn-primary" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; text-decoration: none; border-radius: 12px; font-weight: 600; transition: all 0.3s;">
-              Visit Gentic Store →
+              Visit Gentic Store
             </a>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terms & Refund Policy -->
+  <section class="terms-section" id="terms">
+    <div class="container">
+      <h2 class="section-title">Terms & Refund Policy</h2>
+      <div class="terms-content">
+        <h3>Digital Product Delivery</h3>
+        <p>All templates are delivered digitally via Gumroad immediately after purchase. You will receive a download link to your email and in your Gumroad library.</p>
+
+        <h3>License</h3>
+        <p>Each purchase grants you a single-user license to use the template in your own projects or for your clients. You may not redistribute, resell, or share the template files.</p>
+
+        <h3>Refund Policy</h3>
+        <p>We stand behind the quality of our templates. If a template does not work as described, contact us within 14 days of purchase for a full refund. Please include:</p>
+        <ul>
+          <li>Your Gumroad order number</li>
+          <li>A description of the issue</li>
+          <li>Screenshots or error logs if applicable</li>
+        </ul>
+        <p>Refunds are processed through Gumroad and typically arrive within 5-7 business days.</p>
+
+        <h3>Support</h3>
+        <p>Each purchase includes 2 weeks of email support for setup and configuration questions. Contact us at <a href="mailto:support@genticai.com" style="color: var(--accent-cyan); text-decoration: none;">support@genticai.com</a>.</p>
+
+        <h3>Updates</h3>
+        <p>All template purchases include lifetime access to updates. When we improve a template, you will receive the updated version automatically via Gumroad.</p>
       </div>
     </div>
   </section>
@@ -783,11 +1039,12 @@
         <li><a href="mailto:support@genticai.com">Support</a></li>
         <li><a href="#terms">Terms</a></li>
       </ul>
-      <p class="copyright">© 2026 GenticAI. All rights reserved. Built by automation experts for automation professionals.</p>
+      <p class="copyright">&copy; 2026 GenticAI. All rights reserved. Built by automation experts for automation professionals.</p>
     </div>
   </footer>
 
   <script>
+    // Smooth scroll
     function scrollToTemplates() {
       document.getElementById('templates').scrollIntoView({ behavior: 'smooth' });
     }
@@ -796,7 +1053,6 @@
       document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
     }
 
-    // Add smooth scroll for all anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function (e) {
         e.preventDefault();
@@ -806,6 +1062,41 @@
         }
       });
     });
+
+    // Mobile nav
+    function toggleMobileNav() {
+      const nav = document.getElementById('mobileNav');
+      const hamburger = document.querySelector('.hamburger');
+      nav.classList.toggle('active');
+      hamburger.classList.toggle('active');
+      document.body.style.overflow = nav.classList.contains('active') ? 'hidden' : '';
+    }
+
+    function closeMobileNav() {
+      const nav = document.getElementById('mobileNav');
+      const hamburger = document.querySelector('.hamburger');
+      nav.classList.remove('active');
+      hamburger.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Category filter
+    function filterTemplates(category) {
+      const cards = document.querySelectorAll('.template-card');
+      const tabs = document.querySelectorAll('.filter-tab');
+
+      tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.textContent.trim() === category);
+      });
+
+      cards.forEach(card => {
+        if (category === 'All' || card.dataset.category === category) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
   </script>
 </body>
 </html>
